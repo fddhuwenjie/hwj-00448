@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>宠物健康档案 - 分享</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { background: #f3f4f6; }
+    .share-container { max-width: 900px; margin: 0 auto; padding: 24px; }
+    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    @media (max-width: 640px) { .info-grid { grid-template-columns: 1fr 1fr; } }
+    .info-item { padding: 8px 12px; background: #f9fafb; border-radius: 8px; font-size: 0.875rem; }
+    .info-label { font-weight: 600; color: #4b5563; margin-right: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { background: #4f46e5; color: white; padding: 10px 12px; text-align: left; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+    tr:nth-child(even) td { background: #f9fafb; }
+    .section-card { background: white; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #f3f4f6; }
+    .section-title { font-size: 1.125rem; font-weight: 700; color: #1f2937; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; border-left: 4px solid #4f46e5; padding-left: 12px; }
+    .pet-photo { width: 140px; height: 140px; border-radius: 16px; overflow: hidden; background: linear-gradient(135deg, #e0e7ff, #c7d2fe); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 4rem; }
+    .pet-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .header-banner { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; border-radius: 16px; padding: 28px; margin-bottom: 20px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+    .badge-chip { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-young { background: #dbeafe; color: #1e40af; }
+    .badge-adult { background: #d1fae5; color: #065f46; }
+    .badge-senior { background: #fee2e2; color: #991b1b; }
+    .loading { text-align: center; padding: 80px 20px; }
+    .spinner { width: 48px; height: 48px; border: 4px solid #e5e7eb; border-top-color: #4f46e5; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-tip { text-align: center; padding: 24px; color: #9ca3af; font-size: 0.875rem; }
+    @media print {
+      body { background: white; }
+      .section-card { box-shadow: none; break-inside: avoid; border: 1px solid #ddd; }
+      .header-banner { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="share-container">
+    <div id="loadingState" class="loading">
+      <div class="spinner"></div>
+      <p class="text-gray-500">正在加载宠物健康档案...</p>
+    </div>
+    <div id="errorState" class="hidden" style="text-align:center; padding:60px 20px;">
+      <div style="font-size:4rem; margin-bottom:16px;">😢</div>
+      <p id="errorMessage" style="color:#6b7280; font-size:1rem;"></p>
+    </div>
+    <div id="shareContent" class="hidden">
+      <div class="header-banner">
+        <div class="pet-photo" id="petPhoto">🐾</div>
+        <div class="flex-1 min-w-0">
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+            <h1 id="petName" style="font-size:1.75rem; font-weight:800;"></h1>
+            <span id="petStage" class="badge-chip"></span>
+            <span id="petGender" style="font-size:1.25rem;"></span>
+          </div>
+          <p id="petBreed" style="opacity:0.9; margin-bottom:8px;"></p>
+          <div style="display:flex; gap:20px; flex-wrap:wrap; opacity:0.95;">
+            <span id="petAge"></span>
+            <span id="petWeight"></span>
+            <span id="petNeutered"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title">📋 基本信息</div>
+        <div class="info-grid" id="basicInfoGrid"></div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title">⚖️ 体重记录</div>
+        <table>
+          <thead><tr><th>日期</th><th>体重 (kg)</th></tr></thead>
+          <tbody id="weightTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title">💉 疫苗接种记录</div>
+        <table>
+          <thead><tr><th>疫苗名称</th><th>接种日期</th><th>下次接种</th><th>接种机构</th></tr></thead>
+          <tbody id="vaccineTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title">🐛 驱虫记录</div>
+        <table>
+          <thead><tr><th>驱虫日期</th><th>下次驱虫</th><th>药品</th><th>备注</th></tr></thead>
+          <tbody id="dewormingTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title">🏥 体检记录</div>
+        <table>
+          <thead><tr><th>日期</th><th>检查项目</th><th>结果</th><th>医生建议</th></tr></thead>
+          <tbody id="checkupTableBody"></tbody>
+        </table>
+      </div>
+
+      <div style="text-align:center; margin-top:32px; padding-top:20px; border-top:1px solid #e5e7eb; color:#9ca3af; font-size:0.8rem;">
+        <p>生成时间：<span id="genTime"></span> | 本链接 7 天内有效</p>
+        <p style="margin-top:4px;">🐾 宠物健康管理系统 · 仅供兽医查阅</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.port === '3448'
+      ? 'http://localhost:8448/api'
+      : '/api';
+
+    function $(sel) { return document.querySelector(sel); }
+
+    function showError(msg) {
+      $('#loadingState').classList.add('hidden');
+      $('#errorState').classList.remove('hidden');
+      $('#errorMessage').textContent = msg;
+    }
+
+    function renderTable(tbodyId, rows) {
+      const tbody = $(tbodyId);
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="100%" class="empty-tip">暂无记录</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.join('');
+    }
+
+    async function loadShareData() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      if (!token) return showError('无效的分享链接');
+
+      try {
+        const res = await fetch(`${API_BASE}/share/${token}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '加载失败');
+
+        $('#loadingState').classList.add('hidden');
+        $('#shareContent').classList.remove('hidden');
+
+        const pet = data.pet;
+        const speciesIcon = { '狗': '🐶', '猫': '🐱', '兔': '🐰', '鸟': '🐦', '其他': '🐹' }[pet.species] || '🐾';
+
+        if (pet.photo_url) {
+          $('#petPhoto').innerHTML = `<img src="${pet.photo_url}" alt="${pet.name}" onerror="this.parentElement.innerHTML='${speciesIcon}'">`;
+        } else {
+          $('#petPhoto').textContent = speciesIcon;
+        }
+
+        $('#petName').textContent = pet.name;
+        $('#petGender').textContent = pet.gender === 'male' ? '♂ 公' : '♀ 母';
+        $('#petBreed').textContent = `${pet.species} · ${pet.breed || '未知品种'}`;
+        $('#petAge').textContent = `🎂 ${pet.age.text}`;
+        $('#petWeight').textContent = `⚖️ ${pet.weight}kg`;
+        $('#petNeutered').textContent = pet.neutered ? '🏷️ 已绝育' : '🏷️ 未绝育';
+        const stageClass = pet.lifeStage === '幼年' ? 'badge-young' : pet.lifeStage === '老年' ? 'badge-senior' : 'badge-adult';
+        $('#petStage').textContent = pet.lifeStage;
+        $('#petStage').className = `badge-chip ${stageClass}`;
+
+        const speciesMap = { '狗': '犬', '猫': '猫', '兔': '兔', '鸟': '鸟', '其他': '其他' };
+        $('#basicInfoGrid').innerHTML = `
+          <div class="info-item"><span class="info-label">名字:</span>${pet.name}</div>
+          <div class="info-item"><span class="info-label">种类:</span>${speciesMap[pet.species] || pet.species}</div>
+          <div class="info-item"><span class="info-label">品种:</span>${pet.breed || '未填写'}</div>
+          <div class="info-item"><span class="info-label">出生日期:</span>${pet.birth_date}</div>
+          <div class="info-item"><span class="info-label">年龄:</span>${pet.age.text}</div>
+          <div class="info-item"><span class="info-label">性别:</span>${pet.gender === 'male' ? '公' : '母'}</div>
+          <div class="info-item"><span class="info-label">当前体重:</span>${pet.weight}kg</div>
+          <div class="info-item"><span class="info-label">绝育状态:</span>${pet.neutered ? '已绝育' : '未绝育'}</div>
+          <div class="info-item"><span class="info-label">生命阶段:</span>${pet.lifeStage}</div>
+        `;
+
+        renderTable('#weightTableBody', (data.weights || []).map(w =>
+          `<tr><td>${w.recorded_date}</td><td>${w.weight}</td></tr>`
+        ));
+
+        renderTable('#vaccineTableBody', (data.vaccinations || []).map(v =>
+          `<tr><td>${v.vaccine_name}</td><td>${v.vaccination_date}</td><td>${v.next_vaccination_date || '—'}</td><td>${v.institution || '—'}</td></tr>`
+        ));
+
+        renderTable('#dewormingTableBody', (data.deworming || []).map(d =>
+          `<tr><td>${d.deworming_date}</td><td>${d.next_deworming_date || '—'}</td><td>${d.medicine_name || '—'}</td><td>${d.notes || '—'}</td></tr>`
+        ));
+
+        renderTable('#checkupTableBody', (data.checkups || []).map(c =>
+          `<tr><td>${c.checkup_date}</td><td>${c.items || '—'}</td><td>${c.result || '—'}</td><td>${c.doctor_advice || '—'}</td></tr>`
+        ));
+
+        $('#genTime').textContent = new Date().toLocaleString('zh-CN');
+      } catch (err) {
+        showError(err.message || '加载失败');
+      }
+    }
+
+    loadShareData();
+  </script>
+</body>
+</html>

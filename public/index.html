@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>宠物健康管理系统</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+  <div id="app" class="flex h-screen overflow-hidden">
+
+    <aside id="sidebar" class="w-64 bg-gradient-to-b from-indigo-700 to-indigo-900 text-white flex flex-col flex-shrink-0 shadow-lg">
+      <div class="p-5 border-b border-indigo-600">
+        <h1 class="text-xl font-bold tracking-wide flex items-center gap-2">
+          <span class="text-2xl">🐾</span> 宠物健康管理
+        </h1>
+        <p class="text-indigo-300 text-xs mt-1">Pet Health Manager</p>
+      </div>
+      <nav class="flex-1 py-4 overflow-y-auto">
+        <ul id="navList" class="space-y-1 px-3">
+          <li>
+            <a href="#" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="pets">
+              <span class="text-lg">📋</span> <span>宠物档案</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="health">
+              <span class="text-lg">💊</span> <span>健康记录</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="medication">
+              <span class="text-lg">⏰</span> <span>用药提醒</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="alerts">
+              <span class="text-lg">🔔</span> <span>智能预警</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="diet">
+              <span class="text-lg">🍖</span> <span>饮食管理</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="export">
+              <span class="text-lg">📊</span> <span>数据导出</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      <div class="p-4 border-t border-indigo-600 text-xs text-indigo-300">
+        <p>© 2025 宠物健康管理</p>
+      </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col overflow-hidden">
+
+      <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-4">
+          <label for="petSelector" class="text-sm font-medium text-gray-600">当前宠物：</label>
+          <select id="petSelector" class="border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none bg-white min-w-48">
+            <option value="">请选择宠物</option>
+          </select>
+        </div>
+        <div id="currentPetInfo" class="text-sm text-gray-500 flex items-center gap-3"></div>
+      </header>
+
+      <main class="flex-1 overflow-y-auto p-6">
+
+        <section id="section-pets" class="module-section">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">宠物档案</h2>
+            <button id="btnAddPet" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-sm">
+              + 添加宠物
+            </button>
+          </div>
+          <div id="petCardsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          </div>
+        </section>
+
+        <section id="section-health" class="module-section hidden">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">健康记录</h2>
+
+          <div class="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-700">📈 体重变化趋势</h3>
+              <button id="btnAddWeight" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm transition shadow-sm">
+                + 记录体重
+              </button>
+            </div>
+            <div id="weightChartArea" class="relative" style="height: 300px;">
+              <canvas id="weightChart"></canvas>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-semibold text-gray-700">💉 疫苗接种</h3>
+                <button id="btnAddVaccination" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ 添加</button>
+              </div>
+              <div id="vaccinationList" class="space-y-3 max-h-64 overflow-y-auto"></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-semibold text-gray-700">🐛 驱虫记录</h3>
+                <button id="btnAddDeworming" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ 添加</button>
+              </div>
+              <div id="dewormingList" class="space-y-3 max-h-64 overflow-y-auto"></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-semibold text-gray-700">🏥 体检记录</h3>
+                <button id="btnAddCheckup" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">+ 添加</button>
+              </div>
+              <div id="checkupList" class="space-y-3 max-h-64 overflow-y-auto"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-medication" class="module-section hidden">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">用药提醒</h2>
+
+          <div class="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-700">📌 今日提醒</h3>
+              <span id="todayReminderCount" class="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full">0</span>
+            </div>
+            <div id="todayRemindersList" class="space-y-3"></div>
+            <div id="noRemindersHint" class="text-center text-gray-400 py-8 hidden">
+              <p class="text-4xl mb-2">✅</p>
+              <p>今日暂无用药提醒</p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-semibold text-gray-700">📋 用药计划</h3>
+              <button id="btnAddMedication" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm transition shadow-sm">
+                + 添加用药计划
+              </button>
+            </div>
+            <div id="medicationPlansList" class="space-y-4"></div>
+          </div>
+        </section>
+
+        <section id="section-alerts" class="module-section hidden">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">智能预警</h2>
+          <div id="alertCardsList" class="space-y-4"></div>
+          <div id="noAlertsHint" class="text-center text-gray-400 py-16 hidden">
+            <p class="text-5xl mb-3">🎉</p>
+            <p class="text-lg">暂无预警信息，一切正常！</p>
+          </div>
+        </section>
+
+        <section id="section-diet" class="module-section hidden">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">饮食管理</h2>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">🍽️ 喂食记录</h3>
+                <button id="btnAddFeeding" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm transition shadow-sm">
+                  + 记录喂食
+                </button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="bg-gray-50 text-gray-600">
+                      <th class="px-4 py-3 text-left rounded-tl-lg">时间</th>
+                      <th class="px-4 py-3 text-left">食物</th>
+                      <th class="px-4 py-3 text-left">份量</th>
+                      <th class="px-4 py-3 text-left rounded-tr-lg">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="feedingRecordsTable"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="space-y-5">
+              <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-base font-semibold text-gray-700">💧 饮水量</h3>
+                  <button id="btnAddWater" class="text-blue-600 hover:text-blue-800 text-sm font-medium">+ 记录</button>
+                </div>
+                <div id="waterIntakeTracker">
+                  <div class="flex items-end gap-2 mb-2">
+                    <span id="waterCurrent" class="text-3xl font-bold text-blue-600">0</span>
+                    <span class="text-gray-400 text-sm mb-1">/ <span id="waterTarget">0</span> ml</span>
+                  </div>
+                  <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div id="waterProgressBar" class="bg-blue-500 h-3 rounded-full transition-all" style="width: 0%"></div>
+                  </div>
+                  <p id="waterPercent" class="text-xs text-gray-500 mt-1">今日饮水完成 0%</p>
+                </div>
+              </div>
+              <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                <h3 class="text-base font-semibold text-gray-700 mb-3">🔥 每日推荐</h3>
+                <div id="dailyCalorieDisplay">
+                  <div class="flex items-center gap-3 mb-2">
+                    <span class="text-2xl">🔥</span>
+                    <div>
+                      <p class="text-xs text-gray-500">每日推荐热量</p>
+                      <p class="text-xl font-bold text-orange-600"><span id="calorieValue">0</span> <span class="text-sm font-normal text-gray-500">kcal</span></p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-2xl">💧</span>
+                    <div>
+                      <p class="text-xs text-gray-500">每日推荐饮水</p>
+                      <p class="text-xl font-bold text-blue-600"><span id="waterRecommendValue">0</span> <span class="text-sm font-normal text-gray-500">ml</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-export" class="module-section hidden">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">数据导出</h2>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <h3 class="text-lg font-semibold text-gray-700 mb-4">📄 导出与分享</h3>
+              <div class="space-y-4">
+                <div>
+                  <p class="text-sm text-gray-600 mb-2">导出宠物完整健康档案为可打印的PDF文档</p>
+                  <button id="btnExportPdf" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-lg text-sm font-medium transition shadow-sm flex items-center justify-center gap-2">
+                    <span>🖨️</span> 导出健康档案 PDF
+                  </button>
+                </div>
+                <div class="border-t pt-4">
+                  <p class="text-sm text-gray-600 mb-2">生成7天有效分享链接，方便与兽医或家人共享</p>
+                  <button id="btnShareLink" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-lg text-sm font-medium transition shadow-sm flex items-center justify-center gap-2">
+                    <span>🔗</span> 生成分享链接
+                  </button>
+                </div>
+                <div id="shareLinkResult" class="hidden bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <p class="text-xs text-gray-500 mb-1">分享链接（7天内有效）：</p>
+                  <div class="flex items-center gap-2">
+                    <input id="shareLinkUrl" type="text" class="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm" readonly>
+                    <button id="btnCopyShareLink" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm transition">复制</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <h3 class="text-lg font-semibold text-gray-700 mb-4">💰 本月花费统计</h3>
+              <div class="relative" style="height: 250px;">
+                <canvas id="expenseChart"></canvas>
+              </div>
+              <div id="expenseTotal" class="mt-4 text-center">
+                <p class="text-sm text-gray-500">本月总花费</p>
+                <p class="text-2xl font-bold text-indigo-600">¥<span id="expenseTotalValue">0</span></p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <div id="addPetModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">添加宠物</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addPetForm" class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">名字 <span class="text-red-500">*</span></label>
+            <input type="text" name="name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="宠物名字">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">种类 <span class="text-red-500">*</span></label>
+            <select name="species" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+              <option value="">请选择</option>
+              <option value="狗">🐶 狗</option>
+              <option value="猫">🐱 猫</option>
+              <option value="兔">🐰 兔</option>
+              <option value="鸟">🐦 鸟</option>
+              <option value="其他">🐹 其他</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">品种</label>
+            <input type="text" name="breed" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：金毛寻回犬">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">出生日期 <span class="text-red-500">*</span></label>
+            <input type="date" name="birth_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">体重 (kg)</label>
+            <input type="number" name="weight" step="0.1" min="0" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="0.0">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">性别</label>
+            <select name="gender" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+              <option value="male">♂ 公</option>
+              <option value="female">♀ 母</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="flex items-center gap-2 pt-6">
+            <input type="checkbox" name="neutered" id="petNeutered" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-400">
+            <label for="petNeutered" class="text-sm font-medium text-gray-700">已绝育</label>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">照片链接</label>
+            <input type="url" name="photo_url" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="https://...">
+          </div>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition">确认添加</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addWeightModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">记录体重</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addWeightForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">体重 (kg) <span class="text-red-500">*</span></label>
+          <input type="number" name="weight" step="0.1" min="0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="0.0">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">记录日期 <span class="text-red-500">*</span></label>
+          <input type="date" name="recorded_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium transition">确认记录</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addVaccinationModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">添加疫苗接种</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addVaccinationForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">疫苗名称 <span class="text-red-500">*</span></label>
+          <input type="text" name="vaccine_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：犬瘟热疫苗">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">接种日期 <span class="text-red-500">*</span></label>
+          <input type="date" name="vaccination_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">下次接种日期</label>
+          <input type="date" name="next_vaccination_date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">接种机构</label>
+          <input type="text" name="institution" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：宠爱动物医院">
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition">确认添加</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addDewormingModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">添加驱虫记录</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addDewormingForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">驱虫日期 <span class="text-red-500">*</span></label>
+          <input type="date" name="deworming_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">下次驱虫日期</label>
+          <input type="date" name="next_deworming_date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">药品名称</label>
+          <input type="text" name="medicine_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：拜宠清">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+          <input type="text" name="notes" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：体内驱虫">
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition">确认添加</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addCheckupModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">添加体检记录</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addCheckupForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">体检日期 <span class="text-red-500">*</span></label>
+          <input type="date" name="checkup_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">检查项目</label>
+          <input type="text" name="items" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：血常规,生化检查">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">检查结果</label>
+          <textarea name="result" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none resize-none" placeholder="如：各项指标正常"></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">医生建议</label>
+          <textarea name="doctor_advice" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none resize-none" placeholder="如：保持当前饮食和运动量"></textarea>
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition">确认添加</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addMedicationModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">添加用药计划</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addMedicationForm" class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">药品名称 <span class="text-red-500">*</span></label>
+            <input type="text" name="medicine_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：关节宝">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">剂量 <span class="text-red-500">*</span></label>
+            <input type="text" name="dosage" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：1粒">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">每日频次 <span class="text-red-500">*</span></label>
+            <input type="number" name="frequency_per_day" min="1" max="10" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">持续天数 <span class="text-red-500">*</span></label>
+            <input type="number" name="duration_days" min="1" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：14">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">开始日期 <span class="text-red-500">*</span></label>
+          <input type="date" name="start_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition">确认添加</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addFeedingModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">记录喂食</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addFeedingForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">喂食时间 <span class="text-red-500">*</span></label>
+          <input type="datetime-local" name="feeding_time" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">食物 <span class="text-red-500">*</span></label>
+          <input type="text" name="food" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：皇家金毛专用粮">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">份量</label>
+          <input type="text" name="portion" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：350g">
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg text-sm font-medium transition">确认记录</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addWaterModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">记录饮水</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addWaterForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">日期 <span class="text-red-500">*</span></label>
+          <input type="date" name="record_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">饮水量 (ml) <span class="text-red-500">*</span></label>
+          <input type="number" name="amount_ml" min="1" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="如：200">
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm font-medium transition">确认记录</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed top-5 right-5 z-50 hidden">
+    <div id="toastContent" class="px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-white flex items-center gap-2 transition-all"></div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
