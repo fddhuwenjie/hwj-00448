@@ -61,6 +61,77 @@ app.get('/api/pets', (req, res) => {
   res.json(result);
 });
 
+const SYMPTOM_PRESETS = ['呕吐', '拉稀', '食欲不振', '精神萎靡', '咳嗽', '皮肤异常', '发热', '流鼻涕', '打喷嚏', '瘙痒', '便秘', '抽搐'];
+
+const EXERCISE_TYPES = [
+  { id: 'walk', name: '散步', icon: '🚶' },
+  { id: 'run', name: '跑步', icon: '🏃' },
+  { id: 'swim', name: '游泳', icon: '🏊' },
+  { id: 'play', name: '室内玩耍', icon: '🎾' }
+];
+
+function getRecommendedVaccines(species) {
+  if (species === '狗') {
+    return ['犬瘟热疫苗', '狂犬病疫苗', '犬副流感疫苗', '细小病毒疫苗', '传染性肝炎疫苗'];
+  } else if (species === '猫') {
+    return ['猫瘟疫苗', '狂犬病疫苗', '猫鼻支疫苗', '猫杯状病毒疫苗', '猫白血病疫苗'];
+  }
+  return ['狂犬病疫苗'];
+}
+
+app.get('/api/pets/compare', (req, res) => {
+  const petIds = (req.query.ids || '').split(',').map(id => parseInt(id)).filter(id => id > 0);
+  if (petIds.length < 2 || petIds.length > 3) {
+    return res.status(400).json({ error: '请选择2-3只宠物进行对比' });
+  }
+
+  const result = [];
+  for (const id of petIds) {
+    const pet = db.prepare('SELECT * FROM pets WHERE id = ?').get(id);
+    if (!pet) continue;
+
+    const weights = db.prepare('SELECT recorded_date, weight FROM weight_records WHERE pet_id = ? ORDER BY recorded_date').all(id);
+    
+    const vaccinations = db.prepare('SELECT vaccine_name, next_vaccination_date FROM vaccinations WHERE pet_id = ?').all(id);
+    const recommended = getRecommendedVaccines(pet.species);
+    const vaccinatedNames = new Set(vaccinations.map(v => v.vaccine_name));
+    const upToDate = vaccinations.filter(v => !v.next_vaccination_date || new Date(v.next_vaccination_date) >= new Date()).length;
+    const vaccineCoverage = Math.round((upToDate / recommended.length) * 100);
+
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const expenses = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE pet_id = ? AND expense_date >= ?').get(id, monthStart);
+
+    const father = pet.father_id ? db.prepare('SELECT id, name FROM pets WHERE id = ?').get(pet.father_id) : null;
+    const mother = pet.mother_id ? db.prepare('SELECT id, name FROM pets WHERE id = ?').get(pet.mother_id) : null;
+
+    result.push({
+      pet: {
+        ...pet,
+        age: calcAge(pet.birth_date),
+        lifeStage: getLifeStage(pet.species, calcAge(pet.birth_date).years),
+        father,
+        mother
+      },
+      weights,
+      vaccineCoverage,
+      recommendedVaccines: recommended,
+      vaccinatedCount: upToDate,
+      monthlyExpense: expenses.total
+    });
+  }
+
+  res.json(result);
+});
+
+app.get('/api/symptoms/presets', (req, res) => {
+  res.json(SYMPTOM_PRESETS);
+});
+
+app.get('/api/exercise/types', (req, res) => {
+  res.json(EXERCISE_TYPES);
+});
+
 app.get('/api/pets/:id', (req, res) => {
   const pet = db.prepare('SELECT * FROM pets WHERE id = ?').get(req.params.id);
   if (!pet) return res.status(404).json({ error: '宠物不存在' });
@@ -558,6 +629,346 @@ app.get('/api/pets/:id/export', (req, res) => {
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(html);
+});
+
+// ===== FAMILY TREE =====
+app.get('/api/pets/:id/family', (req, res) => {
+  const petId = parseInt(req.params.id);
+  const pet = db.prepare('SELECT * FROM pets WHERE id = ?').get(petId);
+  if (!pet) return res.status(404).json({ error: '宠物不存在' });
+
+  function getFamilyTree(id, visited = new Set()) {
+    if (visited.has(id)) return null;
+    visited.add(id);
+    
+    const p = db.prepare('SELECT * FROM pets WHERE id = ?').get(id);
+    if (!p) return null;
+
+    const father = p.father_id ? getFamilyTree(p.father_id, new Set(visited)) : null;
+    const mother = p.mother_id ? getFamilyTree(p.mother_id, new Set(visited)) : null;
+
+    const children = db.prepare(`
+      SELECT * FROM pets WHERE father_id = ? OR mother_id = ?
+    `).all(id, id);
+
+    return {
+      ...p,
+      age: calcAge(p.birth_date),
+      father,
+      mother,
+      children: children.map(c => ({
+        ...c,
+        age: calcAge(c.birth_date)
+      }))
+    };
+  }
+
+  const tree = getFamilyTree(petId);
+  res.json(tree);
+});
+
+app.put('/api/pets/:id/parents', (req, res) => {
+  const petId = parseInt(req.params.id);
+  const { father_id, mother_id } = req.body;
+
+  const pet = db.prepare('SELECT * FROM pets WHERE id = ?').get(petId);
+  if (!pet) return res.status(404).json({ error: '宠物不存在' });
+
+  if (father_id === petId || mother_id === petId) {
+    return res.status(400).json({ error: '不能将自己设为父母' });
+  }
+
+  if (father_id) {
+    const father = db.prepare('SELECT * FROM pets WHERE id = ?').get(father_id);
+    if (!father || father.gender !== 'male') {
+      return res.status(400).json({ error: '父亲必须是公宠物' });
+    }
+  }
+  if (mother_id) {
+    const mother = db.prepare('SELECT * FROM pets WHERE id = ?').get(mother_id);
+    if (!mother || mother.gender !== 'female') {
+      return res.status(400).json({ error: '母亲必须是母宠物' });
+    }
+  }
+
+  let breed = pet.breed;
+  if (father_id && mother_id) {
+    const father = db.prepare('SELECT breed FROM pets WHERE id = ?').get(father_id);
+    const mother = db.prepare('SELECT breed FROM pets WHERE id = ?').get(mother_id);
+    if (father.breed && mother.breed && father.breed === mother.breed) {
+      breed = father.breed;
+    }
+  } else if (father_id) {
+    const father = db.prepare('SELECT breed FROM pets WHERE id = ?').get(father_id);
+    if (father.breed) breed = father.breed;
+  } else if (mother_id) {
+    const mother = db.prepare('SELECT breed FROM pets WHERE id = ?').get(mother_id);
+    if (mother.breed) breed = mother.breed;
+  }
+
+  db.prepare('UPDATE pets SET father_id = ?, mother_id = ?, breed = ? WHERE id = ?').run(
+    father_id || null, mother_id || null, breed, petId
+  );
+
+  res.json({ message: '父母关系更新成功', breed });
+});
+
+// ===== SYMPTOMS =====
+
+function analyzeSymptoms(petId) {
+  const records = db.prepare(`
+    SELECT * FROM symptom_records 
+    WHERE pet_id = ? 
+    ORDER BY recorded_date DESC 
+    LIMIT 10
+  `).all(petId);
+
+  const suggestions = [];
+  const symptomHistory = records.map(r => ({
+    date: r.recorded_date,
+    symptoms: r.symptoms.split(','),
+    severity: r.severity
+  }));
+
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+  const recentRecords = records.filter(r => new Date(r.recorded_date) >= threeDaysAgo);
+  const hasLossOfAppetite = recentRecords.filter(r => r.symptoms.includes('食欲不振')).length;
+  
+  if (hasLossOfAppetite >= 3) {
+    suggestions.push({
+      type: 'danger',
+      title: '连续食欲不振预警',
+      description: '连续3天以上食欲不振，建议立即就医检查！'
+    });
+  }
+
+  const hasVomitingAndDiarrhea = records.some(r => 
+    r.symptoms.includes('呕吐') && r.symptoms.includes('拉稀')
+  );
+  if (hasVomitingAndDiarrhea) {
+    suggestions.push({
+      type: 'warning',
+      title: '疑似肠胃炎',
+      description: '同时出现呕吐和拉稀症状，疑似肠胃炎。建议禁食观察12-24小时，给予充足饮水，如症状持续请及时就医。'
+    });
+  }
+
+  const highSeverity = records.filter(r => r.severity >= 4);
+  if (highSeverity.length >= 2) {
+    suggestions.push({
+      type: 'warning',
+      title: '严重症状提醒',
+      description: '近期出现多次严重症状（4星及以上），建议密切观察，必要时就医。'
+    });
+  }
+
+  const hasFever = records.some(r => r.symptoms.includes('发热'));
+  if (hasFever) {
+    suggestions.push({
+      type: 'warning',
+      title: '发热症状',
+      description: '出现发热症状，建议测量体温，正常体温：犬38-39°C，猫38.5-39.5°C。如持续发热请就医。'
+    });
+  }
+
+  const hasCough = records.some(r => r.symptoms.includes('咳嗽'));
+  if (hasCough && !hasVomitingAndDiarrhea) {
+    suggestions.push({
+      type: 'info',
+      title: '呼吸道症状',
+      description: '出现咳嗽症状，可能是呼吸道感染或过敏。保持环境清洁通风，避免剧烈运动，如持续请就医。'
+    });
+  }
+
+  const hasSkinIssue = records.some(r => r.symptoms.includes('皮肤异常') || r.symptoms.includes('瘙痒'));
+  if (hasSkinIssue) {
+    suggestions.push({
+      type: 'info',
+      title: '皮肤问题',
+      description: '出现皮肤异常或瘙痒，可能是过敏、寄生虫或皮肤病。检查是否有跳蚤，保持皮肤清洁，如持续请就医做皮肤检查。'
+    });
+  }
+
+  if (suggestions.length === 0) {
+    suggestions.push({
+      type: 'info',
+      title: '状态良好',
+      description: '未检测到需要特别关注的症状组合。继续保持观察，记录任何异常变化。'
+    });
+  }
+
+  return suggestions;
+}
+
+app.get('/api/pets/:id/symptoms', (req, res) => {
+  const petId = req.params.id;
+  const records = db.prepare('SELECT * FROM symptom_records WHERE pet_id = ? ORDER BY recorded_date DESC').all(petId);
+  const suggestions = analyzeSymptoms(petId);
+  res.json({ records, suggestions });
+});
+
+app.post('/api/pets/:id/symptoms', (req, res) => {
+  const { symptoms, custom_description, severity, photo_url, recorded_date } = req.body;
+  if (!symptoms || !severity || !recorded_date) {
+    return res.status(400).json({ error: '症状、严重程度和日期为必填项' });
+  }
+  if (severity < 1 || severity > 5) {
+    return res.status(400).json({ error: '严重程度必须在1-5之间' });
+  }
+  const symptomStr = Array.isArray(symptoms) ? symptoms.join(',') : symptoms;
+  db.prepare(`
+    INSERT INTO symptom_records (pet_id, symptoms, custom_description, severity, photo_url, recorded_date)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(req.params.id, symptomStr, custom_description, severity, photo_url, recorded_date);
+
+  const suggestions = analyzeSymptoms(req.params.id);
+  res.json({ message: '症状记录添加成功', suggestions });
+});
+
+app.delete('/api/symptoms/:id', (req, res) => {
+  db.prepare('DELETE FROM symptom_records WHERE id = ?').run(req.params.id);
+  res.json({ message: '删除成功' });
+});
+
+// ===== EXERCISE =====
+
+function getExerciseRecommendation(species, breed, ageYears) {
+  const breedLower = (breed || '').toLowerCase();
+  let minMinutes = 30;
+  let maxMinutes = 60;
+
+  if (species === '狗') {
+    if (breedLower.includes('金毛') || breedLower.includes('拉布拉多') || breedLower.includes('golden') || breedLower.includes('labrador')) {
+      minMinutes = 60;
+      maxMinutes = 90;
+    } else if (breedLower.includes('边牧') || breedLower.includes('柯基') || breedLower.includes('corgi') || breedLower.includes('collie')) {
+      minMinutes = 45;
+      maxMinutes = 75;
+    } else if (breedLower.includes('吉娃娃') || breedLower.includes('chihuahua')) {
+      minMinutes = 20;
+      maxMinutes = 40;
+    }
+  } else if (species === '猫') {
+    minMinutes = 15;
+    maxMinutes = 30;
+  }
+
+  if (ageYears < 1) {
+    minMinutes = Math.round(minMinutes * 0.5);
+    maxMinutes = Math.round(maxMinutes * 0.6);
+  } else if (ageYears > 8) {
+    minMinutes = Math.round(minMinutes * 0.6);
+    maxMinutes = Math.round(maxMinutes * 0.7);
+  }
+
+  return { minMinutes, maxMinutes };
+}
+
+app.get('/api/pets/:id/exercise/recommendation', (req, res) => {
+  const pet = db.prepare('SELECT * FROM pets WHERE id = ?').get(req.params.id);
+  if (!pet) return res.status(404).json({ error: '宠物不存在' });
+  const age = calcAge(pet.birth_date);
+  const recommendation = getExerciseRecommendation(pet.species, pet.breed, age.years);
+  res.json({ ...recommendation, age: age.years, species: pet.species, breed: pet.breed });
+});
+
+app.get('/api/pets/:id/exercise', (req, res) => {
+  const petId = req.params.id;
+  const pet = db.prepare('SELECT * FROM pets WHERE id = ?').get(petId);
+  if (!pet) return res.status(404).json({ error: '宠物不存在' });
+
+  const records = db.prepare('SELECT * FROM exercise_records WHERE pet_id = ? ORDER BY recorded_date DESC').all(petId);
+  
+  const age = calcAge(pet.birth_date);
+  const recommendation = getExerciseRecommendation(pet.species, pet.breed, age.years);
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const weekRecords = records.filter(r => new Date(r.recorded_date) >= sevenDaysAgo);
+
+  const today = new Date().toISOString().split('T')[0];
+  const todayRecords = records.filter(r => r.recorded_date === today);
+  const todayTotal = todayRecords.reduce((s, r) => s + r.duration_minutes, 0);
+
+  let status = 'normal';
+  if (todayTotal < recommendation.minMinutes) status = 'insufficient';
+  else if (todayTotal > recommendation.maxMinutes * 1.5) status = 'excessive';
+
+  res.json({
+    records,
+    recommendation,
+    weekRecords,
+    todayTotal,
+    status,
+    statusText: {
+      insufficient: '不足',
+      normal: '达标',
+      excessive: '超标'
+    }[status]
+  });
+});
+
+app.post('/api/pets/:id/exercise', (req, res) => {
+  const { exercise_type, duration_minutes, distance_km, recorded_date } = req.body;
+  if (!exercise_type || !duration_minutes || !recorded_date) {
+    return res.status(400).json({ error: '运动类型、时长和日期为必填项' });
+  }
+  db.prepare(`
+    INSERT INTO exercise_records (pet_id, exercise_type, duration_minutes, distance_km, recorded_date)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(req.params.id, exercise_type, duration_minutes, distance_km || null, recorded_date);
+  res.json({ message: '运动记录添加成功' });
+});
+
+app.delete('/api/exercise/:id', (req, res) => {
+  db.prepare('DELETE FROM exercise_records WHERE id = ?').run(req.params.id);
+  res.json({ message: '删除成功' });
+});
+
+// ===== SLEEP =====
+app.get('/api/pets/:id/sleep', (req, res) => {
+  const petId = req.params.id;
+  const records = db.prepare('SELECT * FROM sleep_records WHERE pet_id = ? ORDER BY recorded_date DESC').all(petId);
+  
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const weekRecords = records.filter(r => new Date(r.recorded_date) >= sevenDaysAgo);
+
+  const avgQuality = weekRecords.length > 0
+    ? (weekRecords.reduce((s, r) => s + r.quality, 0) / weekRecords.length).toFixed(1)
+    : 0;
+
+  const avgHours = weekRecords.length > 0
+    ? (weekRecords.reduce((s, r) => {
+        const sleep = new Date(r.sleep_time);
+        const wake = new Date(r.wake_time);
+        if (wake < sleep) wake.setDate(wake.getDate() + 1);
+        return s + (wake - sleep) / (1000 * 60 * 60);
+      }, 0) / weekRecords.length).toFixed(1)
+    : 0;
+
+  res.json({ records, weekRecords, avgQuality, avgHours });
+});
+
+app.post('/api/pets/:id/sleep', (req, res) => {
+  const { sleep_time, wake_time, quality, recorded_date } = req.body;
+  if (!sleep_time || !wake_time || !quality || !recorded_date) {
+    return res.status(400).json({ error: '入睡时间、起床时间、睡眠质量和日期为必填项' });
+  }
+  if (quality < 1 || quality > 5) {
+    return res.status(400).json({ error: '睡眠质量必须在1-5之间' });
+  }
+  db.prepare(`
+    INSERT INTO sleep_records (pet_id, sleep_time, wake_time, quality, recorded_date)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(req.params.id, sleep_time, wake_time, quality, recorded_date);
+  res.json({ message: '睡眠记录添加成功' });
+});
+
+app.delete('/api/sleep/:id', (req, res) => {
+  db.prepare('DELETE FROM sleep_records WHERE id = ?').run(req.params.id);
+  res.json({ message: '删除成功' });
 });
 
 app.listen(PORT, () => {

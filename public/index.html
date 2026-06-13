@@ -27,8 +27,28 @@
             </a>
           </li>
           <li>
+            <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="compare">
+              <span class="text-lg">📊</span> <span>多宠对比</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="family">
+              <span class="text-lg">🌳</span> <span>家族谱系</span>
+            </a>
+          </li>
+          <li>
             <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="health">
               <span class="text-lg">💊</span> <span>健康记录</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="symptoms">
+              <span class="text-lg">🤒</span> <span>症状日记</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="activity">
+              <span class="text-lg">🏃</span> <span>运动睡眠</span>
             </a>
           </li>
           <li>
@@ -48,7 +68,7 @@
           </li>
           <li>
             <a href="#" class="nav-item flex items-center gap-3 px-4 py-3 rounded-lg transition-all" data-section="export">
-              <span class="text-lg">📊</span> <span>数据导出</span>
+              <span class="text-lg">�</span> <span>数据导出</span>
             </a>
           </li>
         </ul>
@@ -218,6 +238,142 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-compare" class="module-section hidden">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">📊 多宠对比</h2>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+            <div class="flex items-center gap-4 flex-wrap">
+              <div class="flex items-center gap-2 flex-1 min-w-64">
+                <span class="text-sm font-medium text-gray-600">选择宠物（2-3只）：</span>
+                <div id="comparePetCheckboxes" class="flex flex-wrap gap-2">
+                </div>
+              </div>
+              <button id="btnCompare" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                开始对比
+              </button>
+            </div>
+          </div>
+
+          <div id="compareResults" class="space-y-6">
+            <div class="empty-state col-span-full text-center py-16">
+              <div class="empty-icon text-6xl mb-4">📊</div>
+              <div class="empty-text text-lg">请选择2-3只宠物进行对比</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-family" class="module-section hidden">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">🌳 家族谱系</h2>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">👨‍👩‍👧‍👦 家族树</h3>
+                <button id="btnSetParents" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">设置父母</button>
+              </div>
+              <div id="familyTree" class="space-y-3">
+                <div class="text-center text-gray-400 py-8">
+                  <p class="text-4xl mb-2">🌳</p>
+                  <p>请先选择宠物查看家族树</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <h3 class="text-lg font-semibold text-gray-700 mb-4">📋 宠物基本信息</h3>
+              <div id="familyPetInfo" class="text-center text-gray-400 py-8">
+                <p class="text-4xl mb-2">🐾</p>
+                <p>请先选择宠物</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-symptoms" class="module-section hidden">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">🤒 症状日记</h2>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">📝 症状记录</h3>
+                <button id="btnAddSymptom" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm transition shadow-sm">
+                  + 记录症状
+                </button>
+              </div>
+              <div id="symptomTimeline" class="space-y-4">
+                <div class="text-center text-gray-400 py-8">
+                  <p class="text-4xl mb-2">🤒</p>
+                  <p>暂无症状记录</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-5">
+              <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                <h3 class="text-base font-semibold text-gray-700 mb-3">🤖 AI 健康建议</h3>
+                <div id="aiSuggestions" class="space-y-3">
+                  <div class="text-center text-gray-400 py-4">
+                    <p class="text-2xl mb-2">💡</p>
+                    <p class="text-sm">选择宠物后查看健康建议</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-activity" class="module-section hidden">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">🏃 运动与睡眠</h2>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">🏃 运动追踪</h3>
+                <button id="btnAddExercise" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm transition shadow-sm">
+                  + 记录运动
+                </button>
+              </div>
+              <div id="exerciseStatus" class="mb-4">
+              </div>
+              <div class="relative" style="height: 250px;">
+                <canvas id="exerciseChart"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-700">😴 睡眠追踪</h3>
+                <button id="btnAddSleep" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm transition shadow-sm">
+                  + 记录睡眠
+                </button>
+              </div>
+              <div id="sleepSummary" class="mb-4">
+              </div>
+              <div class="relative" style="height: 250px;">
+                <canvas id="sleepChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <h3 class="text-lg font-semibold text-gray-700 mb-4">📋 近期运动记录</h3>
+              <div id="exerciseList" class="space-y-3 max-h-64 overflow-y-auto">
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <h3 class="text-lg font-semibold text-gray-700 mb-4">📋 近期睡眠记录</h3>
+              <div id="sleepList" class="space-y-3 max-h-64 overflow-y-auto">
               </div>
             </div>
           </div>
@@ -532,6 +688,157 @@
         </div>
         <div class="flex gap-3">
           <button type="submit" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm font-medium transition">确认记录</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addSymptomModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">记录症状</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addSymptomForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">症状类型 <span class="text-red-500">*</span></label>
+          <div id="symptomCheckboxes" class="grid grid-cols-3 gap-2">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">自定义描述</label>
+          <textarea name="custom_description" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none resize-none" placeholder="详细描述症状..."></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">严重程度 <span class="text-red-500">*</span></label>
+          <div id="severityStars" class="flex gap-1 text-2xl cursor-pointer">
+            <span data-value="1" class="text-gray-300 hover:text-yellow-400 transition">★</span>
+            <span data-value="2" class="text-gray-300 hover:text-yellow-400 transition">★</span>
+            <span data-value="3" class="text-gray-300 hover:text-yellow-400 transition">★</span>
+            <span data-value="4" class="text-gray-300 hover:text-yellow-400 transition">★</span>
+            <span data-value="5" class="text-gray-300 hover:text-yellow-400 transition">★</span>
+          </div>
+          <input type="hidden" name="severity" value="1">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">照片链接</label>
+          <input type="url" name="photo_url" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none" placeholder="https://...">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">记录日期 <span class="text-red-500">*</span></label>
+          <input type="date" name="recorded_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-2 rounded-lg text-sm font-medium transition">确认记录</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addExerciseModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">记录运动</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addExerciseForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">运动类型 <span class="text-red-500">*</span></label>
+          <select name="exercise_type" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none">
+            <option value="">请选择</option>
+            <option value="walk">🚶 散步</option>
+            <option value="run">🏃 跑步</option>
+            <option value="swim">🏊 游泳</option>
+            <option value="play">🎾 室内玩耍</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">时长 (分钟) <span class="text-red-500">*</span></label>
+            <input type="number" name="duration_minutes" min="1" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none" placeholder="30">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">距离 (km)</label>
+            <input type="number" name="distance_km" step="0.1" min="0" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none" placeholder="2.0">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">日期 <span class="text-red-500">*</span></label>
+          <input type="date" name="recorded_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none">
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium transition">确认记录</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addSleepModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">记录睡眠</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="addSleepForm" class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">入睡时间 <span class="text-red-500">*</span></label>
+            <input type="time" name="sleep_time" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">起床时间 <span class="text-red-500">*</span></label>
+            <input type="time" name="wake_time" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">睡眠质量 <span class="text-red-500">*</span></label>
+          <div id="sleepQualityStars" class="flex gap-1 text-2xl cursor-pointer">
+            <span data-value="1" class="text-gray-300 hover:text-indigo-400 transition">★</span>
+            <span data-value="2" class="text-gray-300 hover:text-indigo-400 transition">★</span>
+            <span data-value="3" class="text-gray-300 hover:text-indigo-400 transition">★</span>
+            <span data-value="4" class="text-gray-300 hover:text-indigo-400 transition">★</span>
+            <span data-value="5" class="text-gray-300 hover:text-indigo-400 transition">★</span>
+          </div>
+          <input type="hidden" name="quality" value="3">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">日期 <span class="text-red-500">*</span></label>
+          <input type="date" name="recorded_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium transition">确认记录</button>
+          <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="setParentsModal" class="modal-overlay fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+      <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-lg font-bold text-gray-800">设置父母</h3>
+        <button class="modal-close text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+      </div>
+      <form id="setParentsForm" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">父亲</label>
+          <select name="father_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+            <option value="">无</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">只能选择公宠物</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">母亲</label>
+          <select name="mother_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none">
+            <option value="">无</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">只能选择母宠物</p>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition">确认设置</button>
           <button type="button" class="modal-close flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm font-medium transition">取消</button>
         </div>
       </form>

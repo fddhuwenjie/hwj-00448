@@ -18,7 +18,11 @@ db.exec(`
     neutered INTEGER DEFAULT 0,
     photo_url TEXT,
     owner_id INTEGER DEFAULT 1,
-    created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    father_id INTEGER,
+    mother_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (father_id) REFERENCES pets(id) ON DELETE SET NULL,
+    FOREIGN KEY (mother_id) REFERENCES pets(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS weight_records (
@@ -125,7 +129,45 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS symptom_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pet_id INTEGER NOT NULL,
+    symptoms TEXT NOT NULL,
+    custom_description TEXT,
+    severity INTEGER NOT NULL,
+    photo_url TEXT,
+    recorded_date TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS exercise_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pet_id INTEGER NOT NULL,
+    exercise_type TEXT NOT NULL,
+    duration_minutes INTEGER NOT NULL,
+    distance_km REAL,
+    recorded_date TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS sleep_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pet_id INTEGER NOT NULL,
+    sleep_time TEXT NOT NULL,
+    wake_time TEXT NOT NULL,
+    quality INTEGER NOT NULL,
+    recorded_date TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now', 'localtime')),
+    FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
+  );
 `);
+
+const cols = db.pragma('table_info(pets)').map(c => c.name);
+if (!cols.includes('father_id')) db.exec('ALTER TABLE pets ADD COLUMN father_id INTEGER REFERENCES pets(id) ON DELETE SET NULL');
+if (!cols.includes('mother_id')) db.exec('ALTER TABLE pets ADD COLUMN mother_id INTEGER REFERENCES pets(id) ON DELETE SET NULL');
 
 function seedData() {
   const petCount = db.prepare('SELECT COUNT(*) as count FROM pets').get();
@@ -176,17 +218,70 @@ function seedData() {
     INSERT INTO expenses (pet_id, category, amount, description, expense_date) VALUES (?, ?, ?, ?, ?)
   `);
 
+  const insertSymptom = db.prepare(`
+    INSERT INTO symptom_records (pet_id, symptoms, custom_description, severity, photo_url, recorded_date) VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  const insertExercise = db.prepare(`
+    INSERT INTO exercise_records (pet_id, exercise_type, duration_minutes, distance_km, recorded_date) VALUES (?, ?, ?, ?, ?)
+  `);
+
+  const insertSleep = db.prepare(`
+    INSERT INTO sleep_records (pet_id, sleep_time, wake_time, quality, recorded_date) VALUES (?, ?, ?, ?, ?)
+  `);
+
+  const updatePetParents = db.prepare('UPDATE pets SET father_id = ?, mother_id = ? WHERE id = ?');
+
   const transaction = db.transaction(() => {
+    const goldenDadId = insertPet.run(
+      '大黄', '狗', '金毛寻回犬', '2018-05-20', 32.0, 'male', 1,
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=adult%20male%20golden%20retriever%20dog%20portrait%20photo%20realistic&image_size=square'
+    ).lastInsertRowid;
+
+    const goldenMomId = insertPet.run(
+      '莉莉', '狗', '金毛寻回犬', '2019-08-10', 26.5, 'female', 1,
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=adult%20female%20golden%20retriever%20dog%20portrait%20photo%20realistic&image_size=square'
+    ).lastInsertRowid;
+
     const goldenId = insertPet.run(
       '大毛', '狗', '金毛寻回犬', '2022-03-15', 28.5, 'male', 1,
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=golden%20retriever%20dog%20portrait%20photo%20realistic&image_size=square'
     ).lastInsertRowid;
+
+    const goldenSonId = insertPet.run(
+      '小金', '狗', '金毛寻回犬', '2024-06-01', 18.0, 'male', 0,
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=young%20golden%20retriever%20puppy%20portrait%20photo%20realistic&image_size=square'
+    ).lastInsertRowid;
+
+    updatePetParents.run(goldenDadId, goldenMomId, goldenId);
+    updatePetParents.run(goldenId, null, goldenSonId);
 
     const catId = insertPet.run(
       '小橘', '猫', '英国短毛猫', '2023-07-20', 4.2, 'female', 1,
       'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=british%20shorthair%20cat%20orange%20portrait%20photo%20realistic&image_size=square'
     ).lastInsertRowid;
 
+    const corgiId = insertPet.run(
+      '豆豆', '狗', '威尔士柯基', '2023-02-14', 12.5, 'male', 1,
+      'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=welsh%20corgi%20dog%20portrait%20photo%20realistic&image_size=square'
+    ).lastInsertRowid;
+
+    const weightDataGoldenDad = [
+      [goldenDadId, 30.5, '2026-01-15'],
+      [goldenDadId, 31.0, '2026-02-15'],
+      [goldenDadId, 31.5, '2026-03-15'],
+      [goldenDadId, 31.8, '2026-04-15'],
+      [goldenDadId, 32.0, '2026-05-15'],
+      [goldenDadId, 32.0, '2026-06-13'],
+    ];
+    const weightDataGoldenMom = [
+      [goldenMomId, 25.0, '2026-01-15'],
+      [goldenMomId, 25.5, '2026-02-15'],
+      [goldenMomId, 25.8, '2026-03-15'],
+      [goldenMomId, 26.2, '2026-04-15'],
+      [goldenMomId, 26.5, '2026-05-15'],
+      [goldenMomId, 26.5, '2026-06-13'],
+    ];
     const weightDataGolden = [
       [goldenId, 26.0, '2026-01-15'],
       [goldenId, 26.8, '2026-02-15'],
@@ -194,6 +289,14 @@ function seedData() {
       [goldenId, 27.9, '2026-04-15'],
       [goldenId, 28.2, '2026-05-15'],
       [goldenId, 28.5, '2026-06-13'],
+    ];
+    const weightDataGoldenSon = [
+      [goldenSonId, 12.0, '2026-01-15'],
+      [goldenSonId, 14.0, '2026-02-15'],
+      [goldenSonId, 15.5, '2026-03-15'],
+      [goldenSonId, 16.8, '2026-04-15'],
+      [goldenSonId, 17.5, '2026-05-15'],
+      [goldenSonId, 18.0, '2026-06-13'],
     ];
     const weightDataCat = [
       [catId, 3.8, '2026-01-15'],
@@ -203,13 +306,37 @@ function seedData() {
       [catId, 4.1, '2026-05-15'],
       [catId, 4.2, '2026-06-13'],
     ];
+    const weightDataCorgi = [
+      [corgiId, 11.0, '2026-01-15'],
+      [corgiId, 11.5, '2026-02-15'],
+      [corgiId, 11.8, '2026-03-15'],
+      [corgiId, 12.1, '2026-04-15'],
+      [corgiId, 12.3, '2026-05-15'],
+      [corgiId, 12.5, '2026-06-13'],
+    ];
+    for (const w of weightDataGoldenDad) insertWeight.run(...w);
+    for (const w of weightDataGoldenMom) insertWeight.run(...w);
     for (const w of weightDataGolden) insertWeight.run(...w);
+    for (const w of weightDataGoldenSon) insertWeight.run(...w);
     for (const w of weightDataCat) insertWeight.run(...w);
+    for (const w of weightDataCorgi) insertWeight.run(...w);
 
     const vaccGolden = [
       [goldenId, '犬瘟热疫苗', '2026-01-10', '2027-01-10', '宠爱动物医院'],
       [goldenId, '狂犬病疫苗', '2026-02-20', '2027-02-20', '宠爱动物医院'],
       [goldenId, '犬副流感疫苗', '2026-03-15', '2026-06-20', '阳光宠物诊所'],
+    ];
+    const vaccGoldenDad = [
+      [goldenDadId, '犬瘟热疫苗', '2026-02-01', '2027-02-01', '宠爱动物医院'],
+      [goldenDadId, '狂犬病疫苗', '2026-03-10', '2027-03-10', '宠爱动物医院'],
+    ];
+    const vaccGoldenMom = [
+      [goldenMomId, '犬瘟热疫苗', '2026-01-25', '2027-01-25', '宠爱动物医院'],
+      [goldenMomId, '狂犬病疫苗', '2026-04-15', '2027-04-15', '宠爱动物医院'],
+    ];
+    const vaccCorgi = [
+      [corgiId, '犬瘟热疫苗', '2026-03-05', '2027-03-05', '阳光宠物诊所'],
+      [corgiId, '狂犬病疫苗', '2026-05-20', '2027-05-20', '阳光宠物诊所'],
     ];
     const vaccCat = [
       [catId, '猫瘟疫苗', '2026-01-05', '2027-01-05', '喵星动物医院'],
@@ -217,17 +344,24 @@ function seedData() {
       [catId, '猫鼻支疫苗', '2026-04-01', '2026-06-18', '阳光宠物诊所'],
     ];
     for (const v of vaccGolden) insertVaccination.run(...v);
+    for (const v of vaccGoldenDad) insertVaccination.run(...v);
+    for (const v of vaccGoldenMom) insertVaccination.run(...v);
+    for (const v of vaccCorgi) insertVaccination.run(...v);
     for (const v of vaccCat) insertVaccination.run(...v);
 
     const dewGolden = [
       [goldenId, '2026-04-01', '2026-07-01', '拜宠清', '体内驱虫'],
       [goldenId, '2026-05-15', '2026-06-18', '福来恩', '体外驱虫'],
     ];
+    const dewCorgi = [
+      [corgiId, '2026-03-10', '2026-06-10', '大宠爱', '内外同驱'],
+    ];
     const dewCat = [
       [catId, '2026-03-20', '2026-06-20', '大宠爱', '内外同驱'],
       [catId, '2026-05-01', '2026-08-01', '拜宠清', '体内驱虫'],
     ];
     for (const d of dewGolden) insertDeworming.run(...d);
+    for (const d of dewCorgi) insertDeworming.run(...d);
     for (const d of dewCat) insertDeworming.run(...d);
 
     const checkGolden = [
@@ -237,8 +371,12 @@ function seedData() {
     const checkCat = [
       [catId, '2026-04-15', '血常规,尿常规', '轻微尿路炎症', '增加饮水量，7天后复查'],
     ];
+    const checkCorgi = [
+      [corgiId, '2026-05-20', '体检', '各项指标正常', '注意控制体重，避免肥胖'],
+    ];
     for (const c of checkGolden) insertCheckup.run(...c);
     for (const c of checkCat) insertCheckup.run(...c);
+    for (const c of checkCorgi) insertCheckup.run(...c);
 
     const plan1 = insertMedPlan.run(goldenId, '关节宝', '1粒', 2, 30, '2026-06-01', 'active').lastInsertRowid;
     const plan2 = insertMedPlan.run(goldenId, '益生菌', '半包', 1, 14, '2026-06-10', 'active').lastInsertRowid;
@@ -282,11 +420,20 @@ function seedData() {
       [catId, '2026-06-13 07:00', '渴望猫粮', '40g'],
       [catId, '2026-06-13 18:30', '渴望猫粮', '40g'],
     ];
+    const feedingCorgi = [
+      [corgiId, '2026-06-13 08:00', '皇家柯基专用粮', '150g'],
+      [corgiId, '2026-06-13 18:00', '皇家柯基专用粮', '150g'],
+    ];
     for (const f of feedingGolden) insertFeeding.run(...f);
     for (const f of feedingCat) insertFeeding.run(...f);
+    for (const f of feedingCorgi) insertFeeding.run(...f);
 
     insertWater.run(goldenId, '2026-06-13', 850);
+    insertWater.run(goldenDadId, '2026-06-13', 900);
+    insertWater.run(goldenMomId, '2026-06-13', 750);
+    insertWater.run(goldenSonId, '2026-06-13', 600);
     insertWater.run(catId, '2026-06-13', 220);
+    insertWater.run(corgiId, '2026-06-13', 450);
 
     const expGolden = [
       [goldenId, 'medical', 380, '体检费用', '2026-05-10'],
@@ -302,8 +449,106 @@ function seedData() {
       [catId, 'medication', 88, '营养膏', '2026-06-01'],
       [catId, 'food', 268, '渴望猫粮1.8kg', '2026-06-01'],
     ];
+    const expCorgi = [
+      [corgiId, 'medical', 200, '体检', '2026-05-20'],
+      [corgiId, 'food', 180, '皇家柯基专用粮', '2026-06-01'],
+      [corgiId, 'food', 50, '零食', '2026-06-08'],
+    ];
+    const expGoldenDad = [
+      [goldenDadId, 'food', 350, '狗粮', '2026-06-01'],
+      [goldenDadId, 'medical', 150, '驱虫', '2026-05-15'],
+    ];
+    const expGoldenMom = [
+      [goldenMomId, 'food', 320, '狗粮', '2026-06-02'],
+    ];
+    const expGoldenSon = [
+      [goldenSonId, 'food', 280, '幼犬粮', '2026-06-01'],
+      [goldenSonId, 'medication', 120, '钙片', '2026-06-05'],
+    ];
     for (const e of expGolden) insertExpense.run(...e);
     for (const e of expCat) insertExpense.run(...e);
+    for (const e of expCorgi) insertExpense.run(...e);
+    for (const e of expGoldenDad) insertExpense.run(...e);
+    for (const e of expGoldenMom) insertExpense.run(...e);
+    for (const e of expGoldenSon) insertExpense.run(...e);
+
+    const symptomGolden = [
+      [goldenId, '食欲不振,精神萎靡', '最近3天胃口不好，吃得很少', 4, '', '2026-06-11'],
+      [goldenId, '食欲不振', '还是不想吃东西', 3, '', '2026-06-12'],
+      [goldenId, '食欲不振,拉稀', '早上拉稀一次，还是没胃口', 4, '', '2026-06-13'],
+    ];
+    const symptomCat = [
+      [catId, '呕吐', '早上吐了一次黄水', 2, '', '2026-06-10'],
+      [catId, '皮肤异常', '后背有红疹，经常抓挠', 3, '', '2026-06-12'],
+    ];
+    const symptomCorgi = [
+      [corgiId, '咳嗽', '偶尔干咳，运动后加重', 3, '', '2026-06-08'],
+      [corgiId, '精神萎靡', '今天不太想动', 2, '', '2026-06-13'],
+    ];
+    for (const s of symptomGolden) insertSymptom.run(...s);
+    for (const s of symptomCat) insertSymptom.run(...s);
+    for (const s of symptomCorgi) insertSymptom.run(...s);
+
+    const exerciseTypes = ['walk', 'run', 'swim', 'play'];
+    const exerciseNames = { walk: '散步', run: '跑步', swim: '游泳', play: '室内玩耍' };
+    const petsForExercise = [goldenId, goldenDadId, goldenMomId, goldenSonId, corgiId];
+    
+    for (let day = 6; day >= 0; day--) {
+      const date = new Date('2026-06-13');
+      date.setDate(date.getDate() - day);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      for (const petId of petsForExercise) {
+        const pet = db.prepare('SELECT * FROM pets WHERE id = ?').get(petId);
+        const isGoldenFamily = pet.breed === '金毛寻回犬';
+        const isYoung = new Date().getFullYear() - new Date(pet.birth_date).getFullYear() < 2;
+        
+        let duration, distance, type;
+        if (isGoldenFamily) {
+          if (isYoung) {
+            duration = 30 + Math.floor(Math.random() * 20);
+            distance = 1.5 + Math.random() * 1.5;
+          } else {
+            duration = 60 + Math.floor(Math.random() * 40);
+            distance = 3 + Math.random() * 3;
+          }
+          type = Math.random() > 0.5 ? 'walk' : 'run';
+        } else {
+          duration = 30 + Math.floor(Math.random() * 30);
+          distance = 1 + Math.random() * 2;
+          type = Math.random() > 0.5 ? 'walk' : 'play';
+        }
+        insertExercise.run(petId, type, duration, parseFloat(distance.toFixed(1)), dateStr);
+      }
+    }
+
+    const sleepQualities = [3, 4, 5, 4, 5, 4, 3];
+    const petsForSleep = [goldenId, goldenDadId, goldenMomId, goldenSonId, catId, corgiId];
+    
+    for (let day = 6; day >= 0; day--) {
+      const date = new Date('2026-06-13');
+      date.setDate(date.getDate() - day);
+      const dateStr = date.toISOString().split('T')[0];
+      
+      for (const petId of petsForSleep) {
+        const pet = db.prepare('SELECT * FROM pets WHERE id = ?').get(petId);
+        const isCat = pet.species === '猫';
+        const baseSleep = isCat ? 16 : 10;
+        const variation = Math.floor(Math.random() * 3) - 1;
+        const sleepHours = baseSleep + variation;
+        
+        const sleepHour = 21 + Math.floor(Math.random() * 2);
+        const wakeHour = 7 + Math.floor(Math.random() * 2);
+        
+        insertSleep.run(
+          petId,
+          `${dateStr} ${sleepHour}:00`,
+          `${dateStr} ${wakeHour}:00`,
+          sleepQualities[day],
+          dateStr
+        );
+      }
+    }
   });
 
   transaction();

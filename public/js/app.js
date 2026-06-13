@@ -6,6 +6,13 @@ let currentPetId = null;
 let pets = [];
 let weightChart = null;
 let expenseChart = null;
+let compareWeightChart = null;
+let compareExpenseChart = null;
+let exerciseChart = null;
+let sleepChart = null;
+let selectedCompareIds = [];
+let symptomPresets = [];
+let exerciseTypes = [];
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -65,6 +72,10 @@ function initNavigation() {
       if (section === 'alerts') renderAlerts();
       if (section === 'diet') renderDiet();
       if (section === 'export') renderExport();
+      if (section === 'compare') renderComparePage();
+      if (section === 'family') renderFamilyPage();
+      if (section === 'symptoms') renderSymptoms();
+      if (section === 'activity') renderActivityPage();
     });
   });
 }
@@ -87,6 +98,27 @@ function initModalHandlers() {
   $('#btnExportPdf')?.addEventListener('click', exportPdf);
   $('#btnShareLink')?.addEventListener('click', generateShareLink);
   $('#btnCopyShareLink')?.addEventListener('click', copyShareLink);
+  $('#btnAddSymptom')?.addEventListener('click', () => {
+    if (!currentPetId) return showToast('请先选择宠物', 'warning');
+    loadSymptomPresets();
+    openModal('addSymptomModal');
+    setSeverityStars(1);
+  });
+  $('#btnAddExercise')?.addEventListener('click', () => {
+    if (!currentPetId) return showToast('请先选择宠物', 'warning');
+    openModal('addExerciseModal');
+  });
+  $('#btnAddSleep')?.addEventListener('click', () => {
+    if (!currentPetId) return showToast('请先选择宠物', 'warning');
+    openModal('addSleepModal');
+    setSleepQualityStars(3);
+  });
+  $('#btnSetParents')?.addEventListener('click', () => {
+    if (!currentPetId) return showToast('请先选择宠物', 'warning');
+    loadParentSelectors();
+    openModal('setParentsModal');
+  });
+  $('#btnCompare')?.addEventListener('click', doCompare);
 }
 
 function initFormHandlers() {
@@ -226,6 +258,86 @@ function initFormHandlers() {
       showToast(err.message, 'error');
     }
   });
+
+  $('#addSymptomForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentPetId) return showToast('请先选择宠物', 'warning');
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    data.severity = parseInt(data.severity);
+    const checkedSymptoms = [];
+    $$('#symptomCheckboxes input[type="checkbox"]:checked').forEach(cb => {
+      checkedSymptoms.push(cb.value);
+    });
+    if (checkedSymptoms.length === 0 && !data.custom_description) {
+      return showToast('请至少选择一个症状或填写自定义描述', 'warning');
+    }
+    data.symptoms = checkedSymptoms;
+    try {
+      const result = await api(`/pets/${currentPetId}/symptoms`, { method: 'POST', body: data });
+      showToast('症状记录添加成功');
+      e.target.reset();
+      closeModals();
+      renderSymptoms();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  $('#addExerciseForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentPetId) return showToast('请先选择宠物', 'warning');
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    data.duration_minutes = parseInt(data.duration_minutes);
+    data.distance_km = data.distance_km ? parseFloat(data.distance_km) : null;
+    try {
+      await api(`/pets/${currentPetId}/exercise`, { method: 'POST', body: data });
+      showToast('运动记录添加成功');
+      e.target.reset();
+      closeModals();
+      renderActivityPage();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  $('#addSleepForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentPetId) return showToast('请先选择宠物', 'warning');
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    data.quality = parseInt(data.quality);
+    data.sleep_time = `${data.recorded_date} ${data.sleep_time}`;
+    data.wake_time = `${data.recorded_date} ${data.wake_time}`;
+    try {
+      await api(`/pets/${currentPetId}/sleep`, { method: 'POST', body: data });
+      showToast('睡眠记录添加成功');
+      e.target.reset();
+      closeModals();
+      renderActivityPage();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+
+  $('#setParentsForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentPetId) return showToast('请先选择宠物', 'warning');
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd);
+    data.father_id = data.father_id ? parseInt(data.father_id) : null;
+    data.mother_id = data.mother_id ? parseInt(data.mother_id) : null;
+    try {
+      await api(`/pets/${currentPetId}/parents`, { method: 'PUT', body: data });
+      showToast('父母关系设置成功');
+      closeModals();
+      await loadPets();
+      renderFamilyPage();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
 }
 
 async function loadPets() {
@@ -284,6 +396,11 @@ function renderPetCards() {
               <div>🏷️ ${p.neutered ? '已绝育' : '未绝育'}</div>
               <div>📅 ${p.birth_date}</div>
             </div>
+            ${(p.father_id || p.mother_id) ? `
+            <div class="mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
+              👨‍👩‍👧 父亲: ${pets.find(x => x.id === p.father_id)?.name || '未知'} / 母亲: ${pets.find(x => x.id === p.mother_id)?.name || '未知'}
+            </div>
+            ` : ''}
           </div>
         </div>
       </div>`;
@@ -306,6 +423,10 @@ function selectPet(id) {
     renderAlerts();
     renderDiet();
     renderExport();
+    renderComparePage();
+    renderFamilyPage();
+    renderSymptoms();
+    renderActivityPage();
   }
 }
 
@@ -575,6 +696,39 @@ window.deleteMedPlan = async function (id) {
   }
 };
 
+window.deleteSymptom = async function (id) {
+  if (!confirm('确定删除该症状记录？')) return;
+  try {
+    await api(`/symptoms/${id}`, { method: 'DELETE' });
+    showToast('已删除');
+    renderSymptoms();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+};
+
+window.deleteExercise = async function (id) {
+  if (!confirm('确定删除该运动记录？')) return;
+  try {
+    await api(`/exercise/${id}`, { method: 'DELETE' });
+    showToast('已删除');
+    renderExercise();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+};
+
+window.deleteSleep = async function (id) {
+  if (!confirm('确定删除该睡眠记录？')) return;
+  try {
+    await api(`/sleep/${id}`, { method: 'DELETE' });
+    showToast('已删除');
+    renderSleep();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+};
+
 async function renderAlerts() {
   const container = $('#alertCardsList');
   const noHint = $('#noAlertsHint');
@@ -729,10 +883,754 @@ function copyShareLink() {
   showToast('链接已复制到剪贴板');
 }
 
+// ===== COMPARE =====
+function renderComparePage() {
+  const container = $('#comparePetCheckboxes');
+  if (!container) return;
+  if (pets.length === 0) {
+    container.innerHTML = '<span class="text-sm text-gray-500">暂无宠物</span>';
+    return;
+  }
+  container.innerHTML = pets.map(p => `
+    <label class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-indigo-50 transition text-sm">
+      <input type="checkbox" value="${p.id}" class="compare-checkbox" ${selectedCompareIds.includes(p.id) ? 'checked' : ''}>
+      <span>${p.name}</span>
+    </label>
+  `).join('');
+
+  $$('.compare-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const id = parseInt(cb.value);
+      if (cb.checked) {
+        if (selectedCompareIds.length < 3) {
+          selectedCompareIds.push(id);
+        } else {
+          cb.checked = false;
+          showToast('最多只能选择3只宠物', 'warning');
+        }
+      } else {
+        selectedCompareIds = selectedCompareIds.filter(i => i !== id);
+      }
+      const btn = $('#btnCompare');
+      if (btn) btn.disabled = selectedCompareIds.length < 2;
+    });
+  });
+
+  const btn = $('#btnCompare');
+  if (btn) btn.disabled = selectedCompareIds.length < 2;
+}
+
+async function doCompare() {
+  if (selectedCompareIds.length < 2) {
+    return showToast('请至少选择2只宠物', 'warning');
+  }
+  try {
+    const data = await api(`/pets/compare?ids=${selectedCompareIds.join(',')}`);
+    renderCompareResults(data);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function renderCompareResults(data) {
+  const container = $('#compareResults');
+  if (!container) return;
+
+  const colors = ['#4F46E5', '#10B981', '#F59E0B'];
+  const petNames = data.map(d => d.pet.name);
+
+  const allDates = new Set();
+  data.forEach(d => d.weights.forEach(w => allDates.add(w.recorded_date)));
+  const sortedDates = Array.from(allDates).sort();
+
+  const weightDatasets = data.map((d, i) => ({
+    label: d.pet.name,
+    data: sortedDates.map(date => {
+      const w = d.weights.find(x => x.recorded_date === date);
+      return w ? w.weight : null;
+    }),
+    borderColor: colors[i],
+    backgroundColor: colors[i] + '20',
+    borderWidth: 2.5,
+    fill: false,
+    tension: 0.35,
+    pointBackgroundColor: colors[i],
+    pointBorderColor: '#fff',
+    pointBorderWidth: 2,
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    spanGaps: true,
+  }));
+
+  const vaccineData = data.map(d => d.vaccineCoverage);
+  const expenseData = data.map(d => d.monthlyExpense);
+
+  container.innerHTML = `
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+      <h3 class="text-lg font-semibold text-gray-700 mb-4">📈 体重变化对比</h3>
+      <div class="relative" style="height: 280px;">
+        <canvas id="compareWeightChart"></canvas>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-700 mb-4">💉 疫苗覆盖率</h3>
+        <div class="space-y-4">
+          ${data.map((d, i) => `
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-medium text-gray-700">${d.pet.name}</span>
+                <span class="text-sm font-bold" style="color: ${colors[i]}">${d.vaccineCoverage}%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="h-2.5 rounded-full transition-all" style="width: ${d.vaccineCoverage}%; background: ${colors[i]}"></div>
+              </div>
+              <div class="text-xs text-gray-500 mt-1">已接种 ${d.vaccinatedCount} / ${d.recommendedVaccines.length} 种推荐疫苗</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 class="text-lg font-semibold text-gray-700 mb-4">💰 本月花费对比</h3>
+        <div class="relative" style="height: 220px;">
+          <canvas id="compareExpenseChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+      <h3 class="text-lg font-semibold text-gray-700 mb-4">📋 基本信息对比</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 text-gray-600">
+              <th class="px-4 py-3 text-left">项目</th>
+              ${data.map(d => `<th class="px-4 py-3 text-left">${d.pet.name}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-500">种类</td>
+              ${data.map(d => `<td class="px-4 py-2.5">${d.pet.species}</td>`).join('')}
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-500">品种</td>
+              ${data.map(d => `<td class="px-4 py-2.5">${d.pet.breed || '未知'}</td>`).join('')}
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-500">年龄</td>
+              ${data.map(d => `<td class="px-4 py-2.5">${d.pet.age.text}</td>`).join('')}
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-500">体重</td>
+              ${data.map(d => `<td class="px-4 py-2.5">${d.pet.weight} kg</td>`).join('')}
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-500">生命阶段</td>
+              ${data.map(d => `<td class="px-4 py-2.5">${d.pet.lifeStage}</td>`).join('')}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  const weightCtx = $('#compareWeightChart');
+  if (weightCtx) {
+    if (compareWeightChart) compareWeightChart.destroy();
+    compareWeightChart = new Chart(weightCtx, {
+      type: 'line',
+      data: { labels: sortedDates, datasets: weightDatasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { usePointStyle: true, padding: 20, font: { size: 12 } } },
+          tooltip: {
+            backgroundColor: '#1F2937',
+            padding: 12,
+            cornerRadius: 8,
+            callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y} kg` },
+          },
+        },
+        scales: {
+          y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: (v) => `${v}kg` } },
+          x: { grid: { display: false }, ticks: { maxRotation: 45, minRotation: 0, font: { size: 11 } } },
+        },
+      },
+    });
+  }
+
+  const expenseCtx = $('#compareExpenseChart');
+  if (expenseCtx) {
+    if (compareExpenseChart) compareExpenseChart.destroy();
+    compareExpenseChart = new Chart(expenseCtx, {
+      type: 'bar',
+      data: {
+        labels: petNames,
+        datasets: [{
+          label: '本月花费 (元)',
+          data: expenseData,
+          backgroundColor: colors.slice(0, data.length),
+          borderRadius: 8,
+          borderSkipped: false,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1F2937',
+            padding: 12,
+            cornerRadius: 8,
+            callbacks: { label: (c) => `¥${c.parsed.y.toFixed(2)}` },
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: (v) => `¥${v}` } },
+          x: { grid: { display: false } },
+        },
+      },
+    });
+  }
+}
+
+// ===== FAMILY =====
+function renderFamilyPage() {
+  renderFamilyTree();
+  renderFamilyPetInfo();
+}
+
+async function renderFamilyTree() {
+  const container = $('#familyTree');
+  if (!container) return;
+  if (!currentPetId) {
+    container.innerHTML = `<div class="text-center text-gray-400 py-8"><p class="text-4xl mb-2">🌳</p><p>请先选择宠物查看家族树</p></div>`;
+    return;
+  }
+  try {
+    const tree = await api(`/pets/${currentPetId}/family`);
+    container.innerHTML = buildFamilyTreeHtml(tree, 0);
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = `<div class="text-center text-gray-400 py-8"><p class="text-4xl mb-2">❌</p><p>加载家族树失败</p></div>`;
+  }
+}
+
+function buildFamilyTreeHtml(node, level) {
+  if (!node) return '';
+  const speciesIcon = { '狗': '🐶', '猫': '🐱', '兔': '🐰', '鸟': '🐦', '其他': '🐹' }[node.species] || '🐾';
+  const genderIcon = node.gender === 'male' ? '♂️' : '♀️';
+  const isCurrent = node.id === currentPetId;
+  
+  let html = `
+    <div class="family-tree-node ${isCurrent ? 'current' : ''}" style="margin-left: ${level * 24}px;">
+      <div class="flex items-center gap-2 p-2 rounded-lg ${isCurrent ? 'bg-indigo-100 border border-indigo-300' : 'bg-gray-50'}">
+        <span class="text-xl">${speciesIcon}</span>
+        <div class="flex-1 min-w-0">
+          <div class="font-medium text-sm ${isCurrent ? 'text-indigo-700' : 'text-gray-800'}">${node.name} ${genderIcon}</div>
+          <div class="text-xs text-gray-500">${node.breed || '未知品种'} · ${node.age.text}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (node.father) {
+    html = `<div class="mb-1"><span class="text-xs text-gray-400 ml-2">👨 父亲</span></div>` + buildFamilyTreeHtml(node.father, level + 1) + html;
+  }
+  if (node.mother) {
+    html = `<div class="mb-1"><span class="text-xs text-gray-400 ml-2">👩 母亲</span></div>` + buildFamilyTreeHtml(node.mother, level + 1) + html;
+  }
+
+  if (node.children && node.children.length > 0) {
+    html += `<div class="mt-2"><span class="text-xs text-gray-400 ml-2">👶 子代 (${node.children.length})</span></div>`;
+    node.children.forEach(child => {
+      html += buildFamilyTreeHtml(child, level + 1);
+    });
+  }
+
+  return html;
+}
+
+function renderFamilyPetInfo() {
+  const container = $('#familyPetInfo');
+  if (!container) return;
+  const pet = pets.find(p => p.id === currentPetId);
+  if (!pet) {
+    container.innerHTML = `<div class="text-center text-gray-400 py-8"><p class="text-4xl mb-2">🐾</p><p>请先选择宠物</p></div>`;
+    return;
+  }
+
+  const father = pets.find(p => p.id === pet.father_id);
+  const mother = pets.find(p => p.id === pet.mother_id);
+  const speciesIcon = { '狗': '🐶', '猫': '🐱', '兔': '🐰', '鸟': '🐦', '其他': '🐹' }[pet.species] || '🐾';
+  const genderIcon = pet.gender === 'male' ? '♂️' : '♀️';
+
+  container.innerHTML = `
+    <div class="text-center">
+      <div class="text-5xl mb-3">${speciesIcon}</div>
+      <h3 class="text-xl font-bold text-gray-800 mb-1">${pet.name} ${genderIcon}</h3>
+      <p class="text-sm text-gray-500 mb-4">${pet.breed || '未知品种'} · ${pet.age.text}</p>
+      
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-blue-50 rounded-lg p-3">
+          <div class="text-xs text-gray-500 mb-1">父亲</div>
+          <div class="font-semibold text-sm text-blue-700">${father ? father.name : '未知'}</div>
+        </div>
+        <div class="bg-pink-50 rounded-lg p-3">
+          <div class="text-xs text-gray-500 mb-1">母亲</div>
+          <div class="font-semibold text-sm text-pink-700">${mother ? mother.name : '未知'}</div>
+        </div>
+      </div>
+
+      <div class="text-left space-y-2 text-sm">
+        <div class="flex justify-between py-1 border-b border-gray-100">
+          <span class="text-gray-500">种类</span>
+          <span class="font-medium">${pet.species}</span>
+        </div>
+        <div class="flex justify-between py-1 border-b border-gray-100">
+          <span class="text-gray-500">体重</span>
+          <span class="font-medium">${pet.weight} kg</span>
+        </div>
+        <div class="flex justify-between py-1 border-b border-gray-100">
+          <span class="text-gray-500">出生日期</span>
+          <span class="font-medium">${pet.birth_date}</span>
+        </div>
+        <div class="flex justify-between py-1">
+          <span class="text-gray-500">生命阶段</span>
+          <span class="font-medium">${pet.lifeStage}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function loadParentSelectors() {
+  const fatherSelect = $('#setParentsForm select[name="father_id"]');
+  const motherSelect = $('#setParentsForm select[name="mother_id"]');
+  const pet = pets.find(p => p.id === currentPetId);
+  
+  const malePets = pets.filter(p => p.gender === 'male' && p.id !== currentPetId);
+  const femalePets = pets.filter(p => p.gender === 'female' && p.id !== currentPetId);
+
+  fatherSelect.innerHTML = '<option value="">无</option>' + 
+    malePets.map(p => `<option value="${p.id}" ${pet && pet.father_id === p.id ? 'selected' : ''}>${p.name}（${p.breed || p.species}）</option>`).join('');
+  
+  motherSelect.innerHTML = '<option value="">无</option>' + 
+    femalePets.map(p => `<option value="${p.id}" ${pet && pet.mother_id === p.id ? 'selected' : ''}>${p.name}（${p.breed || p.species}）</option>`).join('');
+}
+
+// ===== SYMPTOMS =====
+async function loadSymptomPresets() {
+  if (symptomPresets.length > 0) return renderSymptomCheckboxes();
+  try {
+    symptomPresets = await api('/symptoms/presets');
+    renderSymptomCheckboxes();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function renderSymptomCheckboxes() {
+  const container = $('#symptomCheckboxes');
+  if (!container) return;
+  container.innerHTML = symptomPresets.map(s => `
+    <label class="flex items-center gap-1.5 px-2 py-1.5 bg-gray-50 rounded cursor-pointer hover:bg-rose-50 transition text-xs">
+      <input type="checkbox" value="${s}" class="w-3.5 h-3.5">
+      <span>${s}</span>
+    </label>
+  `).join('');
+}
+
+function setSeverityStars(value) {
+  const stars = $$('#severityStars span');
+  const input = $('#addSymptomForm input[name="severity"]');
+  if (input) input.value = value;
+  stars.forEach((star, i) => {
+    if (i < value) {
+      star.classList.remove('text-gray-300');
+      star.classList.add('text-yellow-400');
+    } else {
+      star.classList.remove('text-yellow-400');
+      star.classList.add('text-gray-300');
+    }
+  });
+}
+
+function initSeverityStars() {
+  const container = $('#severityStars');
+  if (!container) return;
+  $$('#severityStars span').forEach(star => {
+    star.addEventListener('click', () => {
+      const val = parseInt(star.dataset.value);
+      setSeverityStars(val);
+    });
+  });
+}
+
+async function renderSymptoms() {
+  if (!currentPetId) return;
+  const timeline = $('#symptomTimeline');
+  const suggestionsDiv = $('#aiSuggestions');
+  if (!timeline) return;
+
+  try {
+    const data = await api(`/pets/${currentPetId}/symptoms`);
+    const { records, suggestions } = data;
+
+    if (records.length === 0) {
+      timeline.innerHTML = `<div class="text-center text-gray-400 py-8"><p class="text-4xl mb-2">🤒</p><p>暂无症状记录</p></div>`;
+    } else {
+      const grouped = {};
+      records.forEach(r => {
+        if (!grouped[r.recorded_date]) grouped[r.recorded_date] = [];
+        grouped[r.recorded_date].push(r);
+      });
+
+      const dates = Object.keys(grouped).sort().reverse();
+      timeline.innerHTML = dates.map(date => {
+        const dayRecords = grouped[date];
+        return `
+          <div class="symptom-day">
+            <div class="symptom-date" data-date="${date}">${date}</div>
+            <div class="space-y-3">
+              ${dayRecords.map(r => {
+                const severityColor = r.severity >= 4 ? 'severe' : r.severity >= 3 ? 'moderate' : 'mild';
+                const symptoms = r.symptoms.split(',');
+                return `
+                  <div class="symptom-card ${severityColor}">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="flex-1">
+                        <div class="flex flex-wrap gap-1 mb-2">
+                          ${symptoms.map(s => `<span class="symptom-tag">${s}</span>`).join('')}
+                        </div>
+                        ${r.custom_description ? `<p class="text-sm text-gray-600 mb-2">${r.custom_description}</p>` : ''}
+                        ${r.photo_url ? `<img src="${r.photo_url}" class="w-20 h-20 object-cover rounded-lg mb-2" onerror="this.style.display='none'">` : ''}
+                      </div>
+                      <div class="flex-shrink-0 text-right">
+                        <div class="text-yellow-500 text-sm">${'★'.repeat(r.severity)}${'☆'.repeat(5 - r.severity)}</div>
+                        <div class="text-xs text-gray-400 mt-1">严重程度</div>
+                        <button onclick="deleteSymptom(${r.id})" class="btn-delete mt-2 text-xs">删除</button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    if (suggestionsDiv && suggestions) {
+      suggestionsDiv.innerHTML = suggestions.map(s => {
+        const typeClass = { danger: 'bg-red-50 border-red-200 text-red-700', warning: 'bg-amber-50 border-amber-200 text-amber-700', info: 'bg-blue-50 border-blue-200 text-blue-700' }[s.type] || 'bg-gray-50 border-gray-200 text-gray-700';
+        const icon = { danger: '🚨', warning: '⚠️', info: '💡' }[s.type] || '💡';
+        return `
+          <div class="p-3 rounded-lg border ${typeClass}">
+            <div class="flex items-center gap-2 mb-1">
+              <span>${icon}</span>
+              <span class="font-semibold text-sm">${s.title}</span>
+            </div>
+            <p class="text-xs leading-relaxed">${s.description}</p>
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// ===== ACTIVITY (Exercise & Sleep) =====
+function setSleepQualityStars(value) {
+  const stars = $$('#sleepQualityStars span');
+  const input = $('#addSleepForm input[name="quality"]');
+  if (input) input.value = value;
+  stars.forEach((star, i) => {
+    if (i < value) {
+      star.classList.remove('text-gray-300');
+      star.classList.add('text-indigo-400');
+    } else {
+      star.classList.remove('text-indigo-400');
+      star.classList.add('text-gray-300');
+    }
+  });
+}
+
+function initSleepQualityStars() {
+  const container = $('#sleepQualityStars');
+  if (!container) return;
+  $$('#sleepQualityStars span').forEach(star => {
+    star.addEventListener('click', () => {
+      const val = parseInt(star.dataset.value);
+      setSleepQualityStars(val);
+    });
+  });
+}
+
+async function renderActivityPage() {
+  if (!currentPetId) return;
+  renderExercise();
+  renderSleep();
+}
+
+async function renderExercise() {
+  const statusDiv = $('#exerciseStatus');
+  const listDiv = $('#exerciseList');
+  const chartCtx = $('#exerciseChart');
+  if (!chartCtx) return;
+
+  try {
+    const data = await api(`/pets/${currentPetId}/exercise`);
+    const { records, recommendation, todayTotal, status, statusText, weekRecords } = data;
+
+    const statusColor = { insufficient: 'bg-orange-100 text-orange-700 border-orange-200', normal: 'bg-green-100 text-green-700 border-green-200', excessive: 'bg-red-100 text-red-700 border-red-200' }[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+    const statusIcon = { insufficient: '⚠️', normal: '✅', excessive: '🔥' }[status] || 'ℹ️';
+
+    if (statusDiv) {
+      statusDiv.innerHTML = `
+        <div class="flex items-center justify-between p-3 rounded-lg border ${statusColor}">
+          <div>
+            <div class="font-semibold text-sm">今日运动状态：${statusText}</div>
+            <div class="text-xs mt-0.5">今日已运动 <strong>${todayTotal}</strong> 分钟 · 推荐 ${recommendation.minMinutes}-${recommendation.maxMinutes} 分钟</div>
+          </div>
+          <div class="text-2xl">${statusIcon}</div>
+        </div>
+      `;
+    }
+
+    const weekDays = [];
+    const weekData = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date('2026-06-13');
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayRecords = weekRecords.filter(r => r.recorded_date === dateStr);
+      const totalMin = dayRecords.reduce((s, r) => s + r.duration_minutes, 0);
+      weekDays.push(dateStr.slice(5));
+      weekData.push(totalMin);
+    }
+
+    if (exerciseChart) exerciseChart.destroy();
+    exerciseChart = new Chart(chartCtx, {
+      type: 'bar',
+      data: {
+        labels: weekDays,
+        datasets: [
+          {
+            label: '运动时长 (分钟)',
+            data: weekData,
+            backgroundColor: weekData.map(v => v >= recommendation.minMinutes ? '#10B981' : '#F59E0B'),
+            borderRadius: 6,
+            borderSkipped: false,
+          },
+          {
+            label: '推荐最低',
+            data: Array(7).fill(recommendation.minMinutes),
+            type: 'line',
+            borderColor: '#9CA3AF',
+            borderDash: [5, 5],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+          }
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { usePointStyle: true, font: { size: 11 }, padding: 12 } },
+          tooltip: {
+            backgroundColor: '#1F2937',
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: { label: (c) => c.dataset.type === 'line' ? `${c.dataset.label}: ${c.parsed.y}分钟` : `${c.parsed.y} 分钟` },
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: (v) => `${v}分` } },
+          x: { grid: { display: false } },
+        },
+      },
+    });
+
+    if (listDiv) {
+      const typeNames = { walk: '散步', run: '跑步', swim: '游泳', play: '室内玩耍' };
+      const typeIcons = { walk: '🚶', run: '🏃', swim: '🏊', play: '🎾' };
+      const recent = records.slice(0, 10);
+      listDiv.innerHTML = recent.length === 0
+        ? '<div class="text-center text-gray-400 py-6"><p class="text-2xl mb-2">🏃</p><p class="text-sm">暂无运动记录</p></div>'
+        : recent.map(r => `
+          <div class="flex items-center gap-3 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition">
+            <div class="text-xl">${typeIcons[r.exercise_type] || '🏃'}</div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-sm text-gray-800">${typeNames[r.exercise_type] || r.exercise_type}</div>
+              <div class="text-xs text-gray-500">${r.recorded_date}</div>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <div class="font-semibold text-sm text-emerald-600">${r.duration_minutes} 分钟</div>
+              ${r.distance_km ? `<div class="text-xs text-gray-500">${r.distance_km} km</div>` : ''}
+              <button onclick="deleteExercise(${r.id})" class="btn-delete mt-1 text-xs">删除</button>
+            </div>
+          </div>
+        `).join('');
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function renderSleep() {
+  const summaryDiv = $('#sleepSummary');
+  const listDiv = $('#sleepList');
+  const chartCtx = $('#sleepChart');
+  if (!chartCtx) return;
+
+  try {
+    const data = await api(`/pets/${currentPetId}/sleep`);
+    const { records, weekRecords, avgQuality, avgHours } = data;
+
+    if (summaryDiv) {
+      summaryDiv.innerHTML = `
+        <div class="grid grid-cols-2 gap-3">
+          <div class="text-center p-3 rounded-lg bg-indigo-50">
+            <div class="text-2xl font-bold text-indigo-600">${avgHours}</div>
+            <div class="text-xs text-gray-500 mt-1">平均睡眠时长 (小时)</div>
+          </div>
+          <div class="text-center p-3 rounded-lg bg-purple-50">
+            <div class="text-2xl font-bold text-purple-600">${avgQuality} <span class="text-lg">★</span></div>
+            <div class="text-xs text-gray-500 mt-1">平均睡眠质量</div>
+          </div>
+        </div>
+      `;
+    }
+
+    const weekDays = [];
+    const weekHours = [];
+    const weekQuality = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date('2026-06-13');
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const dayRecord = weekRecords.find(r => r.recorded_date === dateStr);
+      weekDays.push(dateStr.slice(5));
+      if (dayRecord) {
+        const sleep = new Date(dayRecord.sleep_time);
+        const wake = new Date(dayRecord.wake_time);
+        if (wake < sleep) wake.setDate(wake.getDate() + 1);
+        const hours = (wake - sleep) / (1000 * 60 * 60);
+        weekHours.push(parseFloat(hours.toFixed(1)));
+        weekQuality.push(dayRecord.quality);
+      } else {
+        weekHours.push(0);
+        weekQuality.push(0);
+      }
+    }
+
+    if (sleepChart) sleepChart.destroy();
+    sleepChart = new Chart(chartCtx, {
+      type: 'bar',
+      data: {
+        labels: weekDays,
+        datasets: [
+          {
+            label: '睡眠时长 (小时)',
+            data: weekHours,
+            backgroundColor: '#818CF8',
+            borderRadius: 6,
+            borderSkipped: false,
+            yAxisID: 'y',
+          },
+          {
+            label: '睡眠质量',
+            data: weekQuality,
+            type: 'line',
+            borderColor: '#A855F7',
+            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#A855F7',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            tension: 0.35,
+            fill: false,
+            yAxisID: 'y1',
+          }
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { usePointStyle: true, font: { size: 11 }, padding: 12 } },
+          tooltip: {
+            backgroundColor: '#1F2937',
+            padding: 10,
+            cornerRadius: 8,
+          },
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            position: 'left',
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: { callback: (v) => `${v}h` },
+            title: { display: true, text: '睡眠时长 (h)', font: { size: 11 }, color: '#6B7280' },
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            beginAtZero: true,
+            max: 5,
+            grid: { display: false },
+            ticks: { callback: (v) => v + '★' },
+            title: { display: true, text: '质量', font: { size: 11 }, color: '#6B7280' },
+          },
+          x: { grid: { display: false } },
+        },
+      },
+    });
+
+    if (listDiv) {
+      const recent = records.slice(0, 10);
+      listDiv.innerHTML = recent.length === 0
+        ? '<div class="text-center text-gray-400 py-6"><p class="text-2xl mb-2">😴</p><p class="text-sm">暂无睡眠记录</p></div>'
+        : recent.map(r => {
+            const sleepT = r.sleep_time.split(' ')[1]?.slice(0, 5) || r.sleep_time;
+            const wakeT = r.wake_time.split(' ')[1]?.slice(0, 5) || r.wake_time;
+            return `
+              <div class="flex items-center gap-3 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition">
+                <div class="text-xl">😴</div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-medium text-sm text-gray-800">${sleepT} - ${wakeT}</div>
+                  <div class="text-xs text-gray-500">${r.recorded_date}</div>
+                </div>
+                <div class="text-right flex-shrink-0">
+                  <div class="text-purple-500 text-sm">${'★'.repeat(r.quality)}${'☆'.repeat(5 - r.quality)}</div>
+                  <button onclick="deleteSleep(${r.id})" class="btn-delete mt-1 text-xs">删除</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
 async function init() {
   initNavigation();
   initModalHandlers();
   initFormHandlers();
+  initSeverityStars();
+  initSleepQualityStars();
   await loadPets();
 }
 
